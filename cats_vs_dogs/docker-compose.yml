@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  tfserving:
+    image: tensorflow/serving
+    ports:
+      - 8501:8501
+    volumes:
+      - ./model/cats_dogs_model:/models/cats_dogs_model
+    environment:
+      - MODEL_NAME=cats_dogs_model
+
+  backend:
+    build: ./backend
+    ports:
+      - 8000:8000
+    depends_on:
+      - tfserving
+
+  streamlit:
+    build: ./streamlit_app
+    ports:
+      - 8502:8502
+    depends_on:
+      - backend
