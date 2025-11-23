@@ -1,11 +1,12 @@
-# TODO: Dockerfile for Frontend Application
-FROM python:3.9-slim
+FROM python:3.11-slim
+
 WORKDIR /app
-COPY ./requirements.txt /app
-RUN pip install -r requirements.txt
 
-COPY . /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-EXPOSE ${STREAMLIT_SERVER_PORT}
+COPY . .
 
-CMD ["streamlit", "run", "streamlit_app.py"]
+EXPOSE 80
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "80"]

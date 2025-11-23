@@ -31,7 +31,6 @@ async def predict(file: UploadFile = File(...)):
         img = Image.open(io.BytesIO(contents)).convert("RGB")
         img = img.resize((150, 150))
         img_arr = np.array(img, dtype=np.float32)
-        img_arr /= 255.0
         img_arr = np.expand_dims(img_arr, axis=0)
         payload = {"instances": img_arr.tolist()}
         try:

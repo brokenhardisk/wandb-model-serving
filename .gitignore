@@ -1,0 +1,6 @@
+# ignore raw dataset
+data/
+
+# ignore python artifacts
+__pycache__/
+*.pyc
