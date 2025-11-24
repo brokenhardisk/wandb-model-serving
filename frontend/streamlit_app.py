@@ -11,8 +11,22 @@ dotenv.load_dotenv('.env')
 API_URL = os.environ['API_URL']
 
 st.set_page_config(page_title="Animal Classifier", layout="centered")
-st.title("Animal Image Classifier")
+st.title("Multi-Model Image Classification")
+# Model and version selection
+col1, col2 = st.columns(2)
+with col1:
+    model = st.selectbox(
+        "Select Model",
+        ["animals"],
+        index=0
+    )
 
+with col2:
+    version = st.selectbox(
+        "Select Version",
+        ["latest", "v1", "v2", "1", "2"],
+        index=0
+    )
 st.markdown("Upload an image to get predictions from the TensorFlow model served via TensorFlow Serving.")
 CLASS_LABELS = ["Bird", "Cat", "Dog"] 
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
@@ -24,8 +38,12 @@ if uploaded_file is not None:
     if st.button("Run Prediction"):
         with st.spinner("Sending image to backend..."):
             files = {"file": (uploaded_file.name, uploaded_file.getvalue(), uploaded_file.type)}
+            params = {"model": model, "version": version}
             try:
-                resp = requests.post(f"{API_URL}/predict", files=files)
+                resp = requests.post(
+                    f"{API_URL}/predict",
+                      files=files,
+                      params=params)
                 resp.raise_for_status()
                 data = resp.json()
                 preds = np.array(data["predictions"][0])
@@ -38,3 +56,11 @@ if uploaded_file is not None:
                 st.table(df)
             except Exception as e:
                 st.error(f"Error during prediction: {e}")
+
+# Show available models
+if st.button("Show Model Info"):
+    try:
+        response = requests.get(f"{API_URL}/models")
+        st.json(response.json())
+    except Exception as e:
+        st.error(f"Error fetching models: {str(e)}")

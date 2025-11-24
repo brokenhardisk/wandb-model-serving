@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   model-server:
     image: tensorflow/serving:latest
@@ -7,10 +5,9 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - ./models/pets:/models/pets
+      - ./models:/models
     command:
-      - --model_name=pets
-      - --model_base_path=/models/pets
+      - --model_config_file=/models/models.config
       - --rest_api_port=8501
 
   backend:
@@ -20,7 +17,7 @@ services:
     ports:
       - "8080:80"
     environment:
-      - MODEL_URL=http://model-server:8501/v1/models/pets:predict
+      - MODEL_URL=http://model-server:8501/v1/models
     depends_on:
       - model-server
 

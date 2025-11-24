@@ -1,7 +1,7 @@
 import io
 from PIL import Image
 import numpy as np
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import requests
@@ -10,7 +10,7 @@ import base64
 
 app = FastAPI()
 
-MODEL_URL = os.getenv("MODEL_URL", "http://model-server:8501/v1/models/animal_classifier:predict")
+MODEL_BASE_URL = os.getenv("MODEL_URL", "http://model-server:8501/v1/models")
 
 # Allow CORS from frontend
 app.add_middleware(
@@ -21,11 +21,23 @@ app.add_middleware(
 )
 
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)):
+async def predict(
+    file: UploadFile = File(...),
+    model: str = Query(default="animals", description="Model name"),
+    version: str = Query(default="latest", description="Model version (1, 2, latest, or label like v1, v2)")
+    ):
     try:
         contents = await file.read()
         if not contents:
             return JSONResponse(status_code=400, content={"error": "Empty file received"})
+
+        # Build model URL based on version
+        if version == "latest":
+            model_url = f"{MODEL_BASE_URL}/{model}:predict"
+        elif version.startswith("v"):  # version label (v1, v2)
+            model_url = f"{MODEL_BASE_URL}/{model}/labels/{version}:predict"
+        else:  # numeric version (1, 2)
+            model_url = f"{MODEL_BASE_URL}/{model}/versions/{version}:predict"
 
         # 1. Open and convert
         img = Image.open(io.BytesIO(contents)).convert("RGB")
@@ -34,7 +46,7 @@ async def predict(file: UploadFile = File(...)):
         img_arr = np.expand_dims(img_arr, axis=0)
         payload = {"instances": img_arr.tolist()}
         try:
-            response = requests.post(MODEL_URL, json=payload)
+            response = requests.post(model_url, json=payload)
             response.raise_for_status()
         except requests.exceptions.RequestException as e:
             return JSONResponse(
@@ -57,4 +69,16 @@ async def predict(file: UploadFile = File(...)):
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok", "model_url": MODEL_URL}
+    return {"status": "ok", "model_base_url": MODEL_BASE_URL}
+
+@app.get("/models")
+def list_models():
+    """List available models and versions"""
+    try:
+        response = requests.get(f"{MODEL_BASE_URL.replace('/v1/models', '')}/v1/models/animals")
+        return response.json()
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
