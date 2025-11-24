@@ -24,7 +24,7 @@ with col1:
 with col2:
     version = st.selectbox(
         "Select Version",
-        ["latest", "v1", "v2", "1", "2"],
+        ["v1", "v2",],
         index=0
     )
 st.markdown("Upload an image to get predictions from the TensorFlow model served via TensorFlow Serving.")

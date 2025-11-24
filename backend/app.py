@@ -24,7 +24,7 @@ app.add_middleware(
 async def predict(
     file: UploadFile = File(...),
     model: str = Query(default="animals", description="Model name"),
-    version: str = Query(default="latest", description="Model version (1, 2, latest, or label like v1, v2)")
+    version: str = Query(default="v1", description="Model version (v1, v2)")
     ):
     try:
         contents = await file.read()
@@ -32,13 +32,15 @@ async def predict(
             return JSONResponse(status_code=400, content={"error": "Empty file received"})
 
         # Build model URL based on version
-        if version == "latest":
-            model_url = f"{MODEL_BASE_URL}/{model}:predict"
-        elif version.startswith("v"):  # version label (v1, v2)
+        if version.startswith("v"):  # version label (v1, v2)
             model_url = f"{MODEL_BASE_URL}/{model}/labels/{version}:predict"
-        else:  # numeric version (1, 2)
-            model_url = f"{MODEL_BASE_URL}/{model}/versions/{version}:predict"
+        else:
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Invalid Model Version selected: {version}"}
+            )
 
+        print(f"Using model URL: {model_url}") 
         # 1. Open and convert
         img = Image.open(io.BytesIO(contents)).convert("RGB")
         img = img.resize((150, 150))
@@ -55,7 +57,12 @@ async def predict(
             )
 
         predictions = response.json().get("predictions", [])
-        return JSONResponse(content={"predictions": predictions})
+        return JSONResponse(content={
+            "predictions": predictions,
+            "model": model,
+            "version": version,
+            "model_url": model_url
+        })
 
     except Exception as e:
         import traceback
