@@ -32,8 +32,10 @@ async def predict(
             return JSONResponse(status_code=400, content={"error": "Empty file received"})
 
         # Build model URL based on version
-        if version.startswith("v"):  # version label (v1, v2)
-            model_url = f"{MODEL_BASE_URL}/{model}/labels/{version}:predict"
+        # Convert version label (v1, v2) to version number (1, 2)
+        if version.startswith("v"):
+            version_num = version[1:]  # Remove 'v' prefix
+            model_url = f"{MODEL_BASE_URL}/{model}/versions/{version_num}:predict"
         else:
             return JSONResponse(
                 status_code=400,
@@ -41,10 +43,16 @@ async def predict(
             )
 
         print(f"Using model URL: {model_url}") 
-        # 1. Open and convert
+        
+        # Different versions expect different input sizes
+        # v1: 150x150, v2: 128x128
+        img_size = 150 if version == "v1" else 128
+        
+        # Open and convert image
         img = Image.open(io.BytesIO(contents)).convert("RGB")
-        img = img.resize((150, 150))
+        img = img.resize((img_size, img_size))
         img_arr = np.array(img, dtype=np.float32)
+        img_arr = img_arr / 255.0  # Normalize to [0, 1] as done during training
         img_arr = np.expand_dims(img_arr, axis=0)
         payload = {"instances": img_arr.tolist()}
         try:

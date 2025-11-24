@@ -28,7 +28,11 @@ with col2:
         index=0
     )
 st.markdown("Upload an image to get predictions from the TensorFlow model served via TensorFlow Serving.")
-CLASS_LABELS = ["Bird", "Cat", "Dog"] 
+
+# Different models have different output formats
+CLASS_LABELS_V1 = ["Bird", "Cat", "Dog"]
+CLASS_LABELS_V2 = ["Cat", "Dog"]
+
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
@@ -47,13 +51,32 @@ if uploaded_file is not None:
                 resp.raise_for_status()
                 data = resp.json()
                 preds = np.array(data["predictions"][0])
-                top_idx = int(preds.argmax())
-                top_label = CLASS_LABELS[top_idx]
-                top_prob = preds[top_idx]
-                st.success(f"Prediction complete! The model predicts it is a {top_label} with {top_prob:.2%} confidence.")
-                df = pd.DataFrame({"Class": CLASS_LABELS, "Probability": preds})
-                df["Probability"] = (df["Probability"] * 100).map("{:.2f}%".format)
-                st.table(df)
+                
+                # Handle different model output formats
+                if version == "v1":
+                    # v1: 3 classes (Bird, Cat, Dog)
+                    CLASS_LABELS = CLASS_LABELS_V1
+                    top_idx = int(preds.argmax())
+                    top_label = CLASS_LABELS[top_idx]
+                    top_prob = preds[top_idx]
+                    st.success(f"Prediction complete! The model predicts it is a {top_label} with {top_prob:.2%} confidence.")
+                    df = pd.DataFrame({"Class": CLASS_LABELS, "Probability": preds})
+                    df["Probability"] = (df["Probability"] * 100).map("{:.2f}%".format)
+                    st.table(df)
+                else:
+                    # v2: binary classification (single sigmoid output)
+                    CLASS_LABELS = CLASS_LABELS_V2
+                    dog_prob = float(preds)
+                    cat_prob = 1.0 - dog_prob
+                    probs = [cat_prob, dog_prob]
+                    top_idx = 0 if cat_prob > dog_prob else 1
+                    top_label = CLASS_LABELS[top_idx]
+                    top_prob = max(cat_prob, dog_prob)
+                    st.success(f"Prediction complete! The model predicts it is a {top_label} with {top_prob:.2%} confidence.")
+                    df = pd.DataFrame({"Class": CLASS_LABELS, "Probability": probs})
+                    df["Probability"] = (df["Probability"] * 100).map("{:.2f}%".format)
+                    st.table(df)
+                    
             except Exception as e:
                 st.error(f"Error during prediction: {e}")
 
