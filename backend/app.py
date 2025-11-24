@@ -7,10 +7,25 @@ from fastapi.responses import JSONResponse
 import requests
 import os
 import base64
+from dotenv import load_dotenv
+import wandb
+import time
+
+# Load environment variables from .env
+load_dotenv()
+
+WANDB_API_KEY = os.getenv("WANDB_API_KEY")
+MODEL_BASE_URL = os.getenv("MODEL_URL", "http://model-server:8501/v1/models")
+
+wandb.login(key=WANDB_API_KEY)
+wandb.init(
+    project="model-serving",
+    name="api_inference_logging",
+    reinit=True
+)
+
 
 app = FastAPI()
-
-MODEL_BASE_URL = os.getenv("MODEL_URL", "http://model-server:8501/v1/models")
 
 # Allow CORS from frontend
 app.add_middleware(
@@ -26,6 +41,7 @@ async def predict(
     model: str = Query(default="animals", description="Model name"),
     version: str = Query(default="v1", description="Model version (v1, v2)")
     ):
+    start_time = time.time()
     try:
         contents = await file.read()
         if not contents:
@@ -65,6 +81,17 @@ async def predict(
             )
 
         predictions = response.json().get("predictions", [])
+        inference_time = time.time() - start_time
+
+        # Log to W&B
+        wandb.log({
+            "model": model,
+            "version": version,
+            "num_predictions": len(predictions),
+            "inference_time_sec": inference_time,
+            "input_size": img_size,
+            "example_input": wandb.Image(img)
+        })
         return JSONResponse(content={
             "predictions": predictions,
             "model": model,
@@ -76,6 +103,12 @@ async def predict(
         import traceback
         tb = traceback.format_exc()
         print(tb)
+        wandb.log({
+            "error": str(e),
+            "traceback": tb,
+            "model": model,
+            "version": version
+        })
         return JSONResponse(
             status_code=500,
             content={"error": f"Unexpected error: {str(e)}", "traceback": tb}
@@ -97,3 +130,7 @@ def list_models():
             status_code=500,
             content={"error": str(e)}
         )
+
+@app.on_event("shutdown")
+def shutdown_event():
+    wandb.finish()

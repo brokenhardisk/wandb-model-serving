@@ -8,3 +8,5 @@ numpy
 python-multipart
 redis
 rq
+python-dotenv
+wandb
