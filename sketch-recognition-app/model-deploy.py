@@ -378,6 +378,9 @@ def fastapi_app():
             if len(image.shape) == 3:
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
             
+            # Invert colors: Canvas is Black on White, Model expects White on Black
+            image = cv2.bitwise_not(image)
+            
             image = image.astype(np.uint8)
             image = cv2.resize(image, (self.img_size, self.img_size), interpolation=cv2.INTER_AREA)
             image = image.astype('float32') / 255.0
@@ -679,13 +682,26 @@ def main():
     
     # HTML Canvas with direct API call
     canvas_html = f"""
-    <div style="text-align: center;">
-        <canvas id="canvas" width="400" height="400" style="border: 2px solid #333; cursor: crosshair; background: white;"></canvas>
-        <br><br>
-        <button onclick="clearCanvas()" style="padding: 10px 20px; margin: 5px; font-size: 16px; cursor: pointer; background: #ff4444; color: white; border: none; border-radius: 5px;">Clear Canvas</button>
-        <button onclick="predictSketch()" style="padding: 10px 20px; margin: 5px; font-size: 16px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px;"> Predict</button>
-        <div id="status" style="margin-top: 20px; font-size: 14px; color: #666;"></div>
-        <div id="results" style="margin-top: 20px; text-align: left; max-width: 400px; margin-left: auto; margin-right: auto;"></div>
+    <div style="display: flex; flex-direction: row; justify-content: center; gap: 40px; flex-wrap: wrap; align-items: flex-start;">
+        <div style="text-align: center;">
+            <canvas id="canvas" width="400" height="400" style="border: 2px solid #333; cursor: crosshair; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);"></canvas>
+            <br><br>
+            <div style="display: flex; justify-content: center; gap: 15px;">
+                <button onclick="clearCanvas()" style="padding: 12px 24px; font-size: 16px; cursor: pointer; background: #ff4444; color: white; border: none; border-radius: 5px; font-weight: bold;">Clear Canvas</button>
+                <button onclick="predictSketch()" style="padding: 12px 24px; font-size: 16px; cursor: pointer; background: #4CAF50; color: white; border: none; border-radius: 5px; font-weight: bold;"> Predict</button>
+            </div>
+            <div id="status" style="margin-top: 15px; font-size: 16px; color: #555; font-weight: 500; min-height: 24px;"></div>
+        </div>
+        
+        <div id="results" style="text-align: left; width: 350px; min-height: 400px;">
+            <div style="background: #f8f9fa; border-radius: 10px; padding: 25px; border: 1px solid #dee2e6; height: 100%; box-sizing: border-box;">
+                <h3 style="color: #6c757d; margin-top: 0; text-align: center;">Predictions</h3>
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: #adb5bd;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <p style="margin-top: 10px;">Draw something and click Predict</p>
+                </div>
+            </div>
+        </div>
     </div>
     
     <script>
@@ -695,7 +711,7 @@ def main():
         
         // Set up canvas
         ctx.strokeStyle = 'black';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 20;
         ctx.lineCap = 'round';
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -750,7 +766,14 @@ def main():
         function clearCanvas() {{
             ctx.fillStyle = 'white';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            document.getElementById('results').innerHTML = '';
+            document.getElementById('results').innerHTML = `
+                <div style="background: #f8f9fa; border-radius: 10px; padding: 25px; border: 1px solid #dee2e6; height: 100%; box-sizing: border-box;">
+                    <h3 style="color: #6c757d; margin-top: 0; text-align: center;">Predictions</h3>
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 300px; color: #adb5bd;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        <p style="margin-top: 10px;">Draw something and click Predict</p>
+                    </div>
+                </div>`;
             document.getElementById('status').innerHTML = '';
         }}
         
@@ -759,7 +782,6 @@ def main():
             const resultsDiv = document.getElementById('results');
             
             statusDiv.innerHTML = ' Analyzing your sketch...';
-            resultsDiv.innerHTML = '';
             
             try {{
                 // Get canvas data as base64
@@ -779,17 +801,22 @@ def main():
                     statusDiv.innerHTML = ' Prediction Complete!';
                     
                     // Display results
-                    let html = '<div style="background: #f0f2f6; padding: 20px; border-radius: 10px;">';
-                    html += '<h3 style="color: #FF6B6B; margin-top: 0;"> Top Prediction</h3>';
-                    html += `<h2 style="margin: 10px 0;">${{data.predictions[0].category.toUpperCase()}}</h2>`;
-                    html += `<p style="font-size: 18px; color: #4CAF50;">Confidence: ${{data.predictions[0].confidence.toFixed(1)}}%</p>`;
-                    html += '<hr style="margin: 20px 0;">';
-                    html += '<h4> All Predictions:</h4>';
+                    let html = '<div style="background: #ffffff; padding: 25px; border-radius: 10px; border: 1px solid #e9ecef; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">';
+                    html += '<h3 style="color: #FF6B6B; margin-top: 0; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px;"> Top Prediction</h3>';
+                    html += `<div style="text-align: center; margin: 20px 0;">`;
+                    html += `<h1 style="margin: 0; font-size: 36px; color: #333;">${{data.predictions[0].category.toUpperCase()}}</h1>`;
+                    html += `<p style="font-size: 20px; color: #4CAF50; font-weight: bold; margin: 5px 0;">${{data.predictions[0].confidence.toFixed(1)}}%</p>`;
+                    html += `</div>`;
                     
-                    data.predictions.slice(0, 5).forEach((pred, i) => {{
-                        html += `<div style="margin: 10px 0;">`;
-                        html += `<strong>${{i+1}}. ${{pred.category.charAt(0).toUpperCase() + pred.category.slice(1)}}</strong>: ${{pred.confidence.toFixed(1)}}%`;
-                        html += `<div style="background: #ddd; height: 10px; border-radius: 5px; margin-top: 5px;"><div style="background: #4CAF50; height: 10px; border-radius: 5px; width: ${{pred.confidence}}%;"></div></div>`;
+                    html += '<h4 style="color: #666; margin-top: 25px; margin-bottom: 15px;">Other Possibilities:</h4>';
+                    
+                    data.predictions.slice(1, 5).forEach((pred, i) => {{
+                        html += `<div style="margin: 12px 0;">`;
+                        html += `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;">`;
+                        html += `<span style="font-weight: 500; color: #444;">${{pred.category.charAt(0).toUpperCase() + pred.category.slice(1)}}</span>`;
+                        html += `<span style="color: #666;">${{pred.confidence.toFixed(1)}}%</span>`;
+                        html += `</div>`;
+                        html += `<div style="background: #eee; height: 8px; border-radius: 4px; overflow: hidden;"><div style="background: #4CAF50; height: 100%; width: ${{pred.confidence}}%;"></div></div>`;
                         html += `</div>`;
                     }});
                     
@@ -901,8 +928,40 @@ def batch_predict(images: list[str]) -> list[dict[str, Any]]:
         def preprocess_sketch(self, image):
             if len(image.shape) == 3:
                 image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-            image = image.astype(np.uint8)
-            image = cv2.resize(image, (self.img_size, self.img_size), interpolation=cv2.INTER_AREA)
+            
+            # Invert colors: Canvas is Black on White, Model expects White on Black
+            image = cv2.bitwise_not(image)
+            
+            # Find bounding box of the sketch to crop empty space
+            coords = cv2.findNonZero(image)
+            if coords is not None:
+                x, y, w, h = cv2.boundingRect(coords)
+                
+                # Add padding to preserve stroke edges
+                padding = 20
+                x_min = max(0, x - padding)
+                y_min = max(0, y - padding)
+                x_max = min(image.shape[1], x + w + padding)
+                y_max = min(image.shape[0], y + h + padding)
+                
+                image = image[y_min:y_max, x_min:x_max]
+            
+            # Resize to 28x28 while maintaining aspect ratio
+            # 1. Create a square canvas of the max dimension
+            max_dim = max(image.shape[0], image.shape[1])
+            square_img = np.zeros((max_dim, max_dim), dtype=np.uint8)
+            
+            # 2. Center the image on the square canvas
+            y_offset = (max_dim - image.shape[0]) // 2
+            x_offset = (max_dim - image.shape[1]) // 2
+            square_img[y_offset:y_offset+image.shape[0], x_offset:x_offset+image.shape[1]] = image
+            
+            # 3. Resize to target size
+            image = cv2.resize(square_img, (self.img_size, self.img_size), interpolation=cv2.INTER_AREA)
+            
+            # Apply thresholding to strengthen the strokes after resizing
+            _, image = cv2.threshold(image, 50, 255, cv2.THRESH_BINARY)
+            
             image = image.astype('float32') / 255.0
             image = image.reshape(1, self.img_size, self.img_size, 1)
             return image
