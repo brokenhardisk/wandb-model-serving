@@ -40,7 +40,15 @@ if WANDB_API_KEY:
 else:
     print("ℹ️  WANDB_API_KEY not set. W&B tracking disabled.")
 
-def preprocess_image(image_bytes, img_size):
+def preprocess_image_version_1(image_bytes, img_size):
+    """Preprocess image for model inference."""
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    img = img.resize((img_size, img_size))
+    img_arr = np.array(img, dtype=np.float32)
+    img_arr = np.expand_dims(img_arr, axis=0)
+    return img_arr
+
+def preprocess_image_version_2(image_bytes, img_size):
     """Preprocess image for model inference."""
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     img = img.resize((img_size, img_size))
@@ -55,8 +63,12 @@ def predict_with_model(image_bytes, model_name, version):
         # Determine image size based on version
         img_size = 150 if version == "1" else 128
         
+
         # Preprocess image
-        img_arr = preprocess_image(image_bytes, img_size)
+        if version == "1":
+            img_arr = preprocess_image_version_1(image_bytes, img_size)
+        else:
+            img_arr = preprocess_image_version_2(image_bytes, img_size)
         
         # Prepare payload
         payload = {"instances": img_arr.tolist()}
