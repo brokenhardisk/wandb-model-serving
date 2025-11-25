@@ -1,16 +1,17 @@
-# WandB Model Serving
+# WandB Multi-Model Serving Platform
 
-A complete ML serving system for image classification with Redis queue-based async predictions, multi-model comparison, and W&B inference tracking.
+A complete ML serving system supporting **animal classification** and **sketch recognition** with Redis queue-based async predictions, multi-model comparison, and W&B inference tracking.
 
 ## 🏗️ Architecture
 
 This project demonstrates a complete ML serving pipeline with:
 
-- **TensorFlow Serving**: Serves trained models via REST API
+- **TensorFlow Serving**: Serves trained animal classification models via REST API
+- **Sketch Recognition**: CNN model for QuickDraw dataset (20 categories)
 - **Redis Queue**: Async task queue for scalable predictions
 - **Worker Service**: Background workers processing predictions with W&B tracking
-- **FastAPI Backend**: API for task submission and result retrieval
-- **Streamlit Frontend**: Interactive UI with multi-model comparison
+- **FastAPI Backend**: Unified API for both model types
+- **Streamlit Frontend**: Interactive UI with model selector and multi-model comparison
 - **Docker Compose**: Orchestrates all services
 
 ## 📁 Project Structure
@@ -18,17 +19,18 @@ This project demonstrates a complete ML serving pipeline with:
 ```
 wandb-model-serving/
 ├── backend/              # FastAPI service
-│   ├── app.py           # API endpoints (task queue)
-│   ├── worker.py        # Redis worker with W&B tracking
+│   ├── app.py           # API endpoints (task queue + sketch endpoint)
+│   ├── worker.py        # Redis worker with W&B tracking (both models)
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/            # Streamlit web app
-│   ├── streamlit_app.py # Interactive UI with multi-select
+│   ├── streamlit_app_new.py # Unified UI with model selector
 │   ├── Dockerfile
 │   └── requirements.txt
-├── models/              # TensorFlow SavedModel files
+├── models/              # Model files
 │   ├── models.config    # TF Serving configuration
-│   └── animals/         # Animal classification models
+│   ├── sketch_model.h5  # Sketch recognition model (H5 format)
+│   └── animals/         # Animal classification models (SavedModel)
 │       ├── 1/           # v1: Bird/Cat/Dog (150x150 input)
 │       └── 2/           # v2: Cat/Dog binary (128x128 input)
 ├── model_training/      # Jupyter notebooks for training
@@ -38,20 +40,31 @@ wandb-model-serving/
 
 ## ✨ Key Features
 
+### 🎨 Dual Model Support
+- **Animal Classification**: Upload images for Bird/Cat/Dog recognition
+- **Sketch Recognition**: Draw sketches for real-time recognition (20 categories)
+- Unified interface with model selector dropdown
+
 ### 🔄 Async Prediction Queue
 - Redis-based task queue for scalable inference
 - Background workers process predictions asynchronously
 - Configurable result caching (1-hour TTL)
 
-### 📊 Multi-Model Comparison
+### 📊 Multi-Model Comparison (Animals)
 - Select multiple model versions simultaneously
 - Side-by-side result comparison in UI
 - Support for different model architectures (3-class vs binary)
 
+### ✏️ Interactive Drawing Canvas (Sketch)
+- Real-time sketch drawing with streamlit-drawable-canvas
+- Instant predictions with top-5 results
+- Support for 20 categories from QuickDraw dataset
+
 ### 📈 W&B Inference Tracking
 - Automatic logging of all predictions to Weights & Biases
 - Track model performance, latency, and prediction distribution
-- Distributed tracking per model version
+- Distributed tracking per model type and version
+- Daily worker aggregation for cleaner dashboards
 
 ## 🚀 Quick Start
 
@@ -88,16 +101,30 @@ wandb-model-serving/
 ### Using the Streamlit UI
 
 1. Open http://localhost:8502 in your browser
-2. Select one or more model versions (both selected by default):
+
+2. **Select Model Type** from the dropdown:
+   - **animals**: Image classification (upload photos)
+   - **sketch**: Sketch recognition (draw on canvas)
+
+#### For Animal Classification:
+1. Select one or more model versions (both selected by default):
    - **v1**: 3-class classification (Bird, Cat, Dog) - 150x150 images
    - **v2**: Binary classification (Cat, Dog) - 128x128 images
-3. Upload an image (JPG, JPEG, or PNG)
-4. Click "🚀 Run Prediction" 
-5. View results side-by-side for easy comparison
+2. Upload an image (JPG, JPEG, or PNG)
+3. Click "🚀 Run Prediction" 
+4. View results side-by-side for easy comparison
+
+#### For Sketch Recognition:
+1. Draw on the interactive canvas using your mouse/touchscreen
+2. Click "🚀 Predict Sketch"
+3. View top-5 predictions with confidence scores
+4. Supported categories: apple, banana, cat, dog, house, tree, car, fish, bird, clock, book, chair, cup, star, heart, smiley face, sun, moon, key, hammer
 
 ## 🔧 API Usage
 
-### Submit Prediction Task
+### Animal Classification
+
+#### Submit Prediction Task
 
 ```bash
 # Single version
@@ -116,13 +143,31 @@ curl -X POST "http://localhost:8080/predict?versions=v1,v2" \
 }
 ```
 
-### Get Prediction Results
+### Sketch Recognition
+
+#### Submit Sketch Prediction
+
+```bash
+# Submit base64 encoded sketch image
+curl -X POST "http://localhost:8080/predict/sketch" \
+  -H "Content-Type: application/json" \
+  -d '{"image": "base64_encoded_image_data"}'
+
+# Response includes task_id
+{
+  "task_id": "uuid-here",
+  "status": "queued",
+  "message": "Sketch prediction task queued"
+}
+```
+
+### Get Prediction Results (Both Models)
 
 ```bash
 # Poll for results using task_id
 curl http://localhost:8080/result/{task_id}
 
-# Response when completed
+# Animal classification response
 {
   "task_id": "uuid",
   "status": "completed",
@@ -139,6 +184,24 @@ curl http://localhost:8080/result/{task_id}
     }
   }
 }
+
+# Sketch recognition response
+{
+  "task_id": "uuid",
+  "status": "completed",
+  "results": {
+    "sketch": {
+      "success": true,
+      "predictions": [
+        {"category": "cat", "confidence": 95.2},
+        {"category": "dog", "confidence": 3.1},
+        {"category": "fish", "confidence": 1.2},
+        {"category": "bird", "confidence": 0.3},
+        {"category": "apple", "confidence": 0.2}
+      ]
+    }
+  }
+}
 ```
 
 ### Health Check
@@ -147,17 +210,34 @@ curl http://localhost:8080/result/{task_id}
 curl http://localhost:8080/health
 ```
 
-## 📊 Model Versions
+## 📊 Model Details
 
-### Version 1 (v1)
+### Animal Classification Models
+
+#### Version 1 (v1)
 - **Input**: 150x150 RGB images
 - **Output**: 3 classes (Bird, Cat, Dog)
 - **Format**: Multi-class probabilities `[bird_prob, cat_prob, dog_prob]`
+- **Serving**: TensorFlow Serving REST API
 
-### Version 2 (v2)
+#### Version 2 (v2)
 - **Input**: 128x128 RGB images
 - **Output**: Binary classification (Cat vs Dog)
 - **Format**: Single sigmoid value (0=Cat, 1=Dog)
+- **Serving**: TensorFlow Serving REST API
+
+### Sketch Recognition Model
+
+- **Input**: 28x28 grayscale images
+- **Output**: 20 classes (QuickDraw dataset categories)
+- **Format**: Top-5 predictions with confidence scores
+- **Categories**: apple, banana, cat, dog, house, tree, car, fish, bird, clock, book, chair, cup, star, heart, smiley face, sun, moon, key, hammer
+- **Preprocessing**: 
+  - Color inversion (black on white → white on black)
+  - Auto-cropping with padding
+  - Aspect ratio preservation
+  - Thresholding for stroke enhancement
+- **Serving**: Direct H5 model loading in worker
 
 ## 🛠️ Development
 
@@ -245,6 +325,7 @@ WANDB_API_KEY=your_wandb_api_key_here
 
 # Service URLs (defaults shown)
 MODEL_URL=http://model-server:8501/v1/models
+SKETCH_MODEL_PATH=/models/sketch_model.h5
 REDIS_URL=redis://redis:6379
 API_URL=http://backend
 STREAMLIT_SERVER_PORT=8502
@@ -273,20 +354,38 @@ The worker service automatically logs all predictions to W&B when `WANDB_API_KEY
 
 ### Tracked Metrics
 
-- **Per-prediction logging**:
-  - Task ID and timestamp
-  - Model name and version
-  - Inference duration (ms)
-  - Prediction probabilities
-  - Predicted class
-  - Success/failure status
+#### Animal Classification
+- Task ID and timestamp
+- Model version (v1/v2)
+- Inference duration (ms only, no redundant seconds)
+- Input dimensions and shape
+- Number of predictions
+- Success/failure status
+- Uploaded image
+
+#### Sketch Recognition
+- Task ID and timestamp
+- Model type (sketch)
+- Inference duration (ms)
+- Input size (28x28x1)
+- Top prediction and confidence
+- Total categories (20)
+- Success/failure status
+- Sketch image
+
+### Worker Naming Strategy
+
+Workers use date-only naming (`worker-YYYYMMDD`) for daily aggregation, allowing you to:
+- View all predictions for a specific day in one run
+- Compare daily performance trends
+- Analyze prediction volume per day
 
 ### View Your Dashboard
 
 1. Set `WANDB_API_KEY` in `.env`
 2. Start services: `docker compose up -d`
 3. Make predictions via the UI or API
-4. View metrics at: https://wandb.ai/your-username/model-serving-inference
+4. View metrics at: https://wandb.ai/your-username/model-serving
 
 ### Distributed Tracking
 
