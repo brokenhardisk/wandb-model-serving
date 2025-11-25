@@ -1,6 +1,6 @@
 # WandB Model Serving
 
-A production-ready ML serving system for animal image classification with Redis queue-based async predictions, multi-model comparison, and W&B inference tracking.
+A complete ML serving system for image classification with Redis queue-based async predictions, multi-model comparison, and W&B inference tracking.
 
 ## 🏗️ Architecture
 
