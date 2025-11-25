@@ -36,7 +36,7 @@ with col2:
         default=["v1", "v2"]
     )
 
-# Add model info in sidebar
+# Add model info and uploaded image in sidebar
 with st.sidebar:
     st.header("ℹ️ Model Information")
     if st.button("📊 Show Model Versions", use_container_width=True):
@@ -80,6 +80,12 @@ with st.sidebar:
     - Redis queue processing
     - W&B inference tracking
     """)
+    
+    # Display uploaded image in sidebar if available
+    if st.session_state.uploaded_image:
+        st.markdown("---")
+        st.subheader("📷 Uploaded Image")
+        st.image(st.session_state.uploaded_image, use_container_width=True)
 
 if not versions:
     st.warning("⚠️ Please select at least one model version")
@@ -98,7 +104,6 @@ uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_container_width=True)
     st.session_state.uploaded_image = image
 
     if st.button("🚀 Run Prediction", type="primary"):

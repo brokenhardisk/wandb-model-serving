@@ -25,7 +25,7 @@ if WANDB_API_KEY:
         wandb.login(key=WANDB_API_KEY)
         wandb.init(
             project="model-serving",
-            name=f"worker-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+            name=f"worker-{datetime.now().strftime('%Y%m%d')}",
             config={
                 "architecture": "async-queue",
                 "framework": "tensorflow-serving",
@@ -72,7 +72,7 @@ def predict_with_model(image_bytes, model_name, version):
     except Exception as e:
         return {"success": False, "error": str(e), "version": version}
 
-def log_to_wandb(task_id, model_name, version, prediction_result, duration):
+def log_to_wandb(task_id, model_name, version, prediction_result, duration, image_bytes):
     """Log prediction to W&B."""
     if not wandb_enabled:
         return
@@ -81,12 +81,14 @@ def log_to_wandb(task_id, model_name, version, prediction_result, duration):
         # Determine input size based on version
         img_size = 150 if version == "1" else 128
         
+        # Load image for W&B
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        
         log_data = {
             "task_id": task_id,
             "model": model_name,
             "version": f"v{version}",
             "inference_time_ms": duration * 1000,
-            "inference_time_sec": duration,
             "input_size": img_size,
             "input_shape": f"{img_size}x{img_size}x3",
             "success": prediction_result.get("success", False),
@@ -100,6 +102,9 @@ def log_to_wandb(task_id, model_name, version, prediction_result, duration):
             log_data["output_shape"] = num_predictions
         else:
             log_data["error"] = prediction_result.get("error", "Unknown error")
+        
+        # Add image to log
+        log_data["image"] = wandb.Image(img, caption=f"v{version} - Task {task_id}")
         
         wandb.log(log_data)
         print(f"📊 Logged to W&B: {task_id} - v{version} - {duration*1000:.2f}ms")
@@ -128,7 +133,7 @@ def process_task(task_data):
         results[f"v{version}"] = result
         
         # Log to W&B
-        log_to_wandb(task_id, model_name, version, result, duration)
+        log_to_wandb(task_id, model_name, version, result, duration, image_bytes)
     
     # Store results in Redis with expiration (1 hour)
     result_key = f"result:{task_id}"
