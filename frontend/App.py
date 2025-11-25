@@ -20,7 +20,7 @@ if 'uploaded_image' not in st.session_state:
     st.session_state.uploaded_image = None
 
 st.set_page_config(page_title="App", layout="wide")
-st.title("🤖 Multi-Model AI Prediction Platform")
+st.title("Multi-Model AI Prediction Platform")
 
 # Model selection
 model_type = st.selectbox(
@@ -61,7 +61,7 @@ if model_type == "animals":
                 response = requests.get(f"{API_URL}/models")
                 model_info = response.json()
                 
-                st.success("✅ Model Server Status")
+                st.success("Model Server Status")
                 
                 if 'model_version_status' in model_info:
                     st.subheader("Available Versions")
@@ -72,7 +72,7 @@ if model_type == "animals":
                         if state == 'AVAILABLE':
                             st.success(f"**Version {version}**: {state} ✅")
                         else:
-                            st.warning(f"**Version {version}**: {state}")
+                            st.warning(f"**Version {version}**: {state} ❌")
                         
                         error_msg = version_status.get('status', {}).get('error_message', '')
                         if error_msg:
@@ -189,9 +189,9 @@ if model_type == "animals":
                                     st.info("Still processing... Please try again in a few seconds.")
                         
                 except requests.exceptions.RequestException as e:
-                    st.error(f"❌ Network error: {e}")
+                    st.error(f"Network error: {e}")
                 except Exception as e:
-                    st.error(f"❌ Error during prediction: {e}")
+                    st.error(f"Error during prediction: {e}")
     
     # Display animal results
     if st.session_state.prediction_results:
@@ -208,7 +208,7 @@ if model_type == "animals":
                     st.subheader(f"Model {version_key.upper()}")
                     
                     if not result.get("success"):
-                        st.error(f"❌ Error: {result.get('error', 'Unknown error')}")
+                        st.error(f"Error: {result.get('error', 'Unknown error')}")
                         continue
                     
                     preds = np.array(result["predictions"][0])
@@ -322,7 +322,7 @@ else:  # model_type == "sketch"
                                 st.error(f"Error: {task_data}")
                                 st.stop()
                             
-                            st.success(f"✅ Task queued! ID: `{task_id}`")
+                            st.success(f"Task queued! ID: `{task_id}`")
                             
                             # Poll for results
                             max_attempts = 30
@@ -399,4 +399,3 @@ else:  # model_type == "sketch"
                 st.error(f"Error: {result.get('error', 'Unknown error')}")
         else:
             st.info("Draw a sketch and click predict to see results here")
-

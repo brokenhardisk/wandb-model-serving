@@ -11,4 +11,4 @@ COPY . .
 
 EXPOSE 8502
 
-CMD ["streamlit", "run", "streamlit_app_new.py", "--server.address=0.0.0.0", "--server.port=8502"]
+CMD ["streamlit", "run", "App.py", "--server.address=0.0.0.0", "--server.port=8502"]

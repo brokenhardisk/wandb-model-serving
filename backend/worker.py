@@ -170,6 +170,99 @@ def log_to_wandb(task_id, model_name, version, prediction_result, duration, imag
     except Exception as e:
         print(f"⚠️  W&B logging error: {e}")
 
+def preprocess_sketch(image_bytes):
+    """Preprocess sketch image for model."""
+    try:
+        # Decode image
+        image_array = np.frombuffer(image_bytes, dtype=np.uint8)
+        img = cv2.imdecode(image_array, cv2.IMREAD_GRAYSCALE)
+        
+        if img is None:
+            raise ValueError("Failed to decode image")
+        
+        # Invert colors (canvas is black on white, model expects white on black)
+        img = cv2.bitwise_not(img)
+        
+        # Apply threshold to clean up the image
+        _, img = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
+        
+        # Find bounding box of drawing
+        coords = cv2.findNonZero(img)
+        if coords is not None:
+            x, y, w, h = cv2.boundingRect(coords)
+            
+            # Add padding (10% on each side)
+            padding = int(max(w, h) * 0.1)
+            x = max(0, x - padding)
+            y = max(0, y - padding)
+            w = min(img.shape[1] - x, w + 2 * padding)
+            h = min(img.shape[0] - y, h + 2 * padding)
+            
+            # Crop to bounding box
+            img = img[y:y+h, x:x+w]
+        
+        # Resize to 28x28 maintaining aspect ratio
+        if img.shape[0] > img.shape[1]:
+            new_h = 28
+            new_w = int(28 * img.shape[1] / img.shape[0])
+        else:
+            new_w = 28
+            new_h = int(28 * img.shape[0] / img.shape[1])
+        
+        img = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        
+        # Create 28x28 canvas and center the image
+        canvas = np.zeros((28, 28), dtype=np.uint8)
+        y_offset = (28 - new_h) // 2
+        x_offset = (28 - new_w) // 2
+        canvas[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = img
+        
+        # Normalize to [0, 1]
+        canvas = canvas.astype(np.float32) / 255.0
+        
+        # Reshape for model (batch_size, height, width, channels)
+        canvas = canvas.reshape(1, 28, 28, 1)
+        
+        return canvas
+    except Exception as e:
+        raise Exception(f"Preprocessing failed: {str(e)}")
+
+def predict_sketch(image_bytes):
+    """Predict sketch category."""
+    try:
+        if sketch_model is None:
+            return {
+                "success": False,
+                "error": "Sketch model not loaded"
+            }
+        
+        # Preprocess
+        processed_image = preprocess_sketch(image_bytes)
+        
+        # Predict
+        predictions = sketch_model.predict(processed_image, verbose=0)
+        predictions = predictions[0]  # Get first (and only) result
+        
+        # Get top 5 predictions
+        top_indices = np.argsort(predictions)[::-1][:5]
+        top_predictions = [
+            {
+                "category": SKETCH_CATEGORIES[idx],
+                "confidence": float(predictions[idx] * 100)
+            }
+            for idx in top_indices
+        ]
+        
+        return {
+            "success": True,
+            "predictions": top_predictions
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
 def process_task(task_data):
     """Process a single prediction task."""
     task_id = task_data.get("task_id")
