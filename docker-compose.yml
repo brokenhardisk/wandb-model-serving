@@ -27,7 +27,10 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379
       - MODEL_URL=http://model-server:8501/v1/models
+      - SKETCH_MODEL_PATH=/models/sketch_model.h5
       - WANDB_API_KEY=${WANDB_API_KEY}
+    volumes:
+      - ./models:/models:ro
     depends_on:
       - redis
       - model-server

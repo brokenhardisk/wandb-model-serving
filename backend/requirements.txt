@@ -10,3 +10,5 @@ redis
 rq
 python-dotenv
 wandb
+opencv-python-headless
+tensorflow

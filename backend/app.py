@@ -60,7 +60,7 @@ async def predict(
                 content={"error": "Redis queue unavailable. Service degraded."}
             )
 
-        # Parse versions
+        # Parse versions for animals model
         version_list = [v.strip() for v in versions.split(",")]
         version_nums = []
         for v in version_list:
@@ -81,6 +81,7 @@ async def predict(
         # Create task
         task = {
             "task_id": task_id,
+            "task_type": "animal",
             "image": image_b64,
             "model": model,
             "versions": version_nums,
@@ -95,6 +96,55 @@ async def predict(
             "status": "queued",
             "versions": version_list,
             "message": f"Prediction task queued for versions: {', '.join(version_list)}"
+        })
+
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(tb)
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Unexpected error: {str(e)}", "traceback": tb}
+        )
+
+
+@app.post("/predict/sketch")
+async def predict_sketch(image_data: dict = Body(...)):
+    """
+    Submit a sketch prediction task to Redis queue.
+    Expects base64 encoded image from canvas.
+    """
+    try:
+        if not redis_client:
+            return JSONResponse(
+                status_code=503,
+                content={"error": "Redis queue unavailable. Service degraded."}
+            )
+
+        if "image" not in image_data:
+            return JSONResponse(status_code=400, content={"error": "Missing 'image' field"})
+
+        # Generate unique task ID
+        task_id = str(uuid.uuid4())
+
+        # Get base64 image (remove data URL prefix if present)
+        image_b64 = image_data["image"].split(",")[-1] if "," in image_data["image"] else image_data["image"]
+
+        # Create task
+        task = {
+            "task_id": task_id,
+            "task_type": "sketch",
+            "image": image_b64,
+            "model": "sketch"
+        }
+
+        # Push to Redis queue
+        redis_client.rpush("prediction_queue", json.dumps(task))
+
+        return JSONResponse(content={
+            "task_id": task_id,
+            "status": "queued",
+            "message": "Sketch prediction task queued"
         })
 
     except Exception as e:

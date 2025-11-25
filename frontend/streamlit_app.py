@@ -4,6 +4,7 @@ from PIL import Image
 import numpy as np
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 import requests
 import dotenv
 import time
@@ -17,24 +18,16 @@ if 'prediction_results' not in st.session_state:
 if 'uploaded_image' not in st.session_state:
     st.session_state.uploaded_image = None
 
-st.set_page_config(page_title="Animal Classifier", layout="wide")
-st.title("🐾 Multi-Model Image Classification")
+st.set_page_config(page_title="AI Model Serving", layout="wide")
+st.title("🤖 Multi-Model AI Prediction Platform")
 
 # Model selection
-col1, col2 = st.columns([1, 2])
-with col1:
-    model = st.selectbox(
-        "Select Model",
-        ["animals"],
-        index=0
-    )
-
-with col2:
-    versions = st.multiselect(
-        "Select Version(s) for Comparison",
-        ["v1", "v2"],
-        default=["v1", "v2"]
-    )
+model_type = st.selectbox(
+    "Select Model Type",
+    ["animals", "sketch"],
+    index=0,
+    help="Choose between animal classification or sketch recognition"
+)
 
 # Add model info and uploaded image in sidebar
 with st.sidebar:
