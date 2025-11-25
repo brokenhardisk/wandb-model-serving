@@ -1,0 +1,10 @@
+tensorflow==2.17.0
+numpy==1.26.4
+opencv-python-headless==4.9.0.80
+scikit-learn==1.5.0
+streamlit==1.32.0
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+pydantic==2.6.1
+requests==2.31.0
+Pillow==10.2.0
