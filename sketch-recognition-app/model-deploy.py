@@ -315,7 +315,7 @@ def setup_application() -> dict[str, Any]:
     
     # Verify Python version
     python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-    print(f"🐍 Python version: {python_version}")
+    print(f" Python version: {python_version}")
     
     # Download model if needed
     model_status = download_model.remote()
@@ -368,7 +368,7 @@ def fastapi_app():
             self.categories = [
                 'apple', 'banana', 'cat', 'dog', 'house',
                 'tree', 'car', 'fish', 'bird', 'clock',
-                'book', 'chair', 'cup', 'star', 'heart',
+                'book', 'chair', 'cup', 'star', 'octopus',
                 'smiley face', 'sun', 'moon', 'key', 'hammer'
             ]
             self.img_size = 28
