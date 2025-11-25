@@ -24,7 +24,8 @@ wandb-model-serving/
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/            # Streamlit web app
-│   ├── streamlit_app_new.py # Unified UI with model selector
+│   ├── App.py           # Unified UI with model selector
+│   ├── pages/           # Additional Streamlit pages
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── models/              # Model files
