@@ -18,7 +18,7 @@ TRAIN_CONFIG = {
     'categories': [
         'apple', 'banana', 'cat', 'dog', 'house',
         'tree', 'car', 'fish', 'bird', 'clock',
-        'book', 'chair', 'cup', 'star', 'heart',
+        'book', 'chair', 'cup', 'star', 'octopus',
         'smiley face', 'sun', 'moon', 'key', 'hammer'
     ]
 }
